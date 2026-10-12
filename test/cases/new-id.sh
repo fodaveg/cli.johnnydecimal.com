@@ -430,13 +430,22 @@ _jd_t_run jd new id --dry-run 37 Flat first
 _jd_t_status 'flat: an empty category, exit status' 0
 _jd_t_contains 'flat: an empty category starts at .11' '37.11 Flat first' "$JD_T_ERR"
 
+# A folder two levels down is not a category in a flat JDex, whatever
+# its name. The notes in the root still count.
+mkdir -p "$_jd_t_flat/attachments/21 photos"
+_jd_t_run jd new id --dry-run 21 Flat with a folder
+_jd_t_contains 'flat: a folder named like the category is not the category' \
+  "note    $_jd_t_flat/21.51 Flat with a folder.md" "$JD_T_ERR"
+rm -rf "$_jd_t_flat/attachments"
+
 # A JDex with no folder and no NN.NN note is still not a JDex jd can write to.
 rm -f "$_jd_t_flat"/*.md
 _jd_t_run jd new id --json 21 Flat empty
 _jd_t_eq 'flat: no folder and no notes, the code is no_category_jdex' \
   'no_category_jdex' "$(_jd_t_json '.code')"
 
-# Two folders for the category are ambiguous, flat notes or not.
+# Two folders for the category are ambiguous. The area folder makes
+# this JDex a nested one, so the note in the root does not count.
 _jd_fx_note "$_jd_t_flat/22.11 Widget one.md"
 mkdir -p "$_jd_t_flat/20-29 Area/21 One" "$_jd_t_flat/20-29 Area/21 Two"
 _jd_t_run jd new id --json 21 Flat ambiguous
@@ -450,5 +459,16 @@ _jd_t_load "$JD_T_TMP/new.json"
 _jd_t_run jd new id --dry-run 21 Still nested
 _jd_t_contains 'nested: still the category folder' \
   "note    $_jd_t_j21/21.36 Still nested.md" "$JD_T_ERR"
+
+# A note in the root of a nested JDex does not make it flat. Category 13
+# has no folder in the JDex, and that is still the answer.
+_jd_fx_note "$JD_FX_JDEX/00.00 Index.md"
+_jd_t_run jd new id --json 13 Nested with a note in the root
+_jd_t_eq 'nested: a note in the root, the code is still no_category_jdex' \
+  'no_category_jdex' "$(_jd_t_json '.code')"
+_jd_t_run jd new id --dry-run 21 Nested with a note in the root
+_jd_t_contains 'nested: a note in the root, still the category folder' \
+  "note    $_jd_t_j21/21.36 Nested with a note in the root.md" "$JD_T_ERR"
+rm -f "$JD_FX_JDEX/00.00 Index.md"
 
 _jd_t_summary

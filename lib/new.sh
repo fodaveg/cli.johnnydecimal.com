@@ -667,13 +667,17 @@ _jd_new_id() {
   esac
 
   # The category, in both trees, found by the start of its name.
-  jcat=$(_jd_nav_find "$_JD_NEW_JDEX" 2 d -name "$c" -o -name "$c *")
   fcat=$(_jd_nav_find "$_JD_NEW_ROOT" 2 d -name "$c" -o -name "$c *")
-  if [ -z "$jcat" ] && [ -n "$(_jd_nav_find "$_JD_NEW_JDEX" 1 a -name '[0-9][0-9].[0-9][0-9]*.md')" ]; then
-    # A flat JDex: no category folders, the notes sit in the root. The
-    # root is the category. Only the notes named c.NN count, so the
-    # other categories in the root do not.
+  if [ -z "$(_jd_nav_find "$_JD_NEW_JDEX" 1 d -name '[0-9][0-9]-[0-9][0-9]' -o -name '[0-9][0-9]-[0-9][0-9] *')" ] &&
+    [ -n "$(_jd_nav_find "$_JD_NEW_JDEX" 1 a -name '[0-9][0-9].[0-9][0-9]*.md')" ]; then
+    # A flat JDex: no area folders, the notes sit in the root. The root
+    # is the category. Only the notes named c.NN count, so the other
+    # categories in the root do not. No folder below the root is read
+    # as a category, whatever its name.
     jcat=$_JD_NEW_JDEX
+  else
+    # A nested JDex. A note in its root does not make it flat.
+    jcat=$(_jd_nav_find "$_JD_NEW_JDEX" 2 d -name "$c" -o -name "$c *")
   fi
   if [ "$(printf '%s' "$jcat" | grep -c '^')" -ne 1 ]; then
     _jd_new_fail no_category_jdex "$_JD_NEW_JDEX" "the JDex has no one folder for category $c: $_JD_NEW_JDEX"
