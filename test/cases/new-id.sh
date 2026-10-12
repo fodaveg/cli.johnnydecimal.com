@@ -362,4 +362,93 @@ _jd_t_eq 'no template: the note is blank' '' \
 _jd_t_run jd new id --dry-run 22 A dry run with no template
 _jd_t_contains 'no template: a dry run says so too' 'no ID template' "$JD_T_ERR"
 
+# ------------------------------------------------------------ a flat JDex
+#
+# Some JDexes have no category folders: the notes sit in the root. The
+# root is then the category. Here the JDex is a flat folder, and the
+# filesystem is the nested one from the fixture.
+#   21   21.11 and 21.35, as in the nested fixture
+#   22   22.11, a decoy that 21 must not count
+#   37   no notes yet, but the filesystem has the category
+
+_jd_fx_reset
+_jd_fx_build_templates
+_jd_t_flat="$JD_T_TMP/flat jdex"
+mkdir -p "$_jd_t_flat"
+mkdir -p "$JD_FX_ROOT/20-29 Area two/37 Category thirtyseven"
+for _jd_t_flatnote in '21.11 Tripsy notes' '21.35 Some title' '22.11 Widget one' '22.95 A high one'; do
+  _jd_fx_note "$_jd_t_flat/$_jd_t_flatnote.md"
+done
+_jd_t_jdex_nested=$JD_FX_JDEX
+JD_FX_JDEX=$_jd_t_flat
+_jd_fx_config_new "$JD_T_TMP/new-flat.json"
+JD_FX_JDEX=$_jd_t_jdex_nested
+_jd_t_load "$JD_T_TMP/new-flat.json"
+
+_jd_t_run jd new id --dry-run 21 Flat next
+_jd_t_status 'flat: next free ID, exit status' 0
+_jd_t_contains 'flat: the next ID counts only its own category' '21.36 Flat next' "$JD_T_ERR"
+_jd_t_contains 'flat: the note goes in the JDex root' \
+  "note    $_jd_t_flat/21.36 Flat next.md" "$JD_T_ERR"
+
+_jd_t_run jd new id 21 Flat made
+_jd_t_status 'flat: make, exit status' 0
+if [ -f "$_jd_t_flat/21.36 Flat made.md" ] && [ -d "$_jd_t_f21/21.36 Flat made" ]; then
+  _jd_t_ok 'flat: the note is in the root and the folder in the category'
+else
+  _jd_t_bad 'flat: the note is in the root and the folder in the category' \
+    "$_jd_t_flat/21.36 Flat made.md" 'nothing'
+fi
+_jd_t_contains 'flat: the note comes from the template' \
+  'Category template for 21.36 Flat made' "$(cat "$_jd_t_flat/21.36 Flat made.md" 2>/dev/null)"
+
+_jd_t_run jd new id --dry-run 21 After the one made
+_jd_t_contains 'flat: the next ID counts the one just made' '21.37 After the one made' "$JD_T_ERR"
+
+_jd_t_run jd new id 21.50 Flat exact
+_jd_t_status 'flat: an exact ID, exit status' 0
+[ -f "$_jd_t_flat/21.50 Flat exact.md" ] && _jd_t_ok 'flat: an exact ID, the note is there' ||
+  _jd_t_bad 'flat: an exact ID, the note is there' '21.50 Flat exact.md' 'nothing'
+
+_jd_t_run jd new id --json 21.35 Flat taken
+_jd_t_status 'flat: a used ID, exit status' 1
+_jd_t_eq 'flat: a used ID, the code is exists' 'exists' "$(_jd_t_json '.code')"
+
+# An ID inside the archive, 21.09, counts as in a nested JDex.
+mkdir -p "$_jd_t_flat/21.09 Archive"
+_jd_fx_note "$_jd_t_flat/21.09 Archive/21.60 Archived.md"
+_jd_t_run jd new id --dry-run 21 After the archive
+_jd_t_contains 'flat: an archived ID is counted' '21.61 After the archive' "$JD_T_ERR"
+rm -rf "$_jd_t_flat/21.09 Archive"
+
+# 22.11 is used, and 21 does not mind it.
+_jd_t_run jd new id --json 22.11 Flat other category
+_jd_t_eq 'flat: another category is counted for itself' 'exists' "$(_jd_t_json '.code')"
+
+# A category with no notes yet starts at .11.
+_jd_t_run jd new id --dry-run 37 Flat first
+_jd_t_status 'flat: an empty category, exit status' 0
+_jd_t_contains 'flat: an empty category starts at .11' '37.11 Flat first' "$JD_T_ERR"
+
+# A JDex with no folder and no NN.NN note is still not a JDex jd can write to.
+rm -f "$_jd_t_flat"/*.md
+_jd_t_run jd new id --json 21 Flat empty
+_jd_t_eq 'flat: no folder and no notes, the code is no_category_jdex' \
+  'no_category_jdex' "$(_jd_t_json '.code')"
+
+# Two folders for the category are ambiguous, flat notes or not.
+_jd_fx_note "$_jd_t_flat/22.11 Widget one.md"
+mkdir -p "$_jd_t_flat/20-29 Area/21 One" "$_jd_t_flat/20-29 Area/21 Two"
+_jd_t_run jd new id --json 21 Flat ambiguous
+_jd_t_eq 'flat: two category folders is still no_category_jdex' \
+  'no_category_jdex' "$(_jd_t_json '.code')"
+
+# The nested JDex is unchanged: back to the fixture config.
+_jd_fx_reset
+_jd_fx_build_templates
+_jd_t_load "$JD_T_TMP/new.json"
+_jd_t_run jd new id --dry-run 21 Still nested
+_jd_t_contains 'nested: still the category folder' \
+  "note    $_jd_t_j21/21.36 Still nested.md" "$JD_T_ERR"
+
 _jd_t_summary
